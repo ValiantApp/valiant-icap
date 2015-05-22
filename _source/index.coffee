@@ -95,7 +95,6 @@ handleRequest = (icapReq, icapRes, req, res) ->
       'Content-Type': 'application/json'
 
   callback = (response) ->
-    console.log "THIS", @
     str = ''
     response.on 'data', (chunk) ->
       str += chunk

@@ -102,7 +102,6 @@ handleRequest = function (icapReq, icapRes, req, res) {
     };
     callback = function (response) {
         var str;
-        console.log("THIS", this);
         str = '';
         response.on('data', function (chunk) {
             return str += chunk;
