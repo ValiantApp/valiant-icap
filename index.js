@@ -1,12 +1,10 @@
-var DomainList, ICAPServer, acceptRequest, rejectRequest, server, whitelist;
+var ICAPServer, METACERT_KEY, acceptRequest, handleRequest, https, rejectRequest, server;
 
 ICAPServer = require('nodecap').ICAPServer;
 
-DomainList = require('nodecap').DomainList;
+https = require('https');
 
-whitelist = new DomainList();
-
-whitelist.addMany(['google.com']);
+METACERT_KEY = process.env.METACERT_KEY;
 
 server = new ICAPServer({
     debug: false
@@ -15,11 +13,11 @@ server = new ICAPServer({
 console.log('Starting ICAP Server');
 
 server.listen(function (port) {
+    console.log("META", METACERT_KEY);
     return console.log('ICAP server listening on port ' + port);
 });
 
 server.options('/request', function (icapReq, icapRes, next) {
-    console.log('request');
     icapRes.setIcapStatusCode(200);
     icapRes.setIcapHeaders({
         'Methods': 'REQMOD',
@@ -30,7 +28,6 @@ server.options('/request', function (icapReq, icapRes, next) {
 });
 
 server.options('/response', function (icapReq, icapRes, next) {
-    console.log('response');
     icapRes.setIcapStatusCode(200);
     icapRes.setIcapHeaders({
         'Methods': 'RESPMOD',
@@ -92,9 +89,50 @@ rejectRequest = function (icapReq, icapRes, req, res) {
     }
 };
 
-server.request('*', rejectRequest);
+handleRequest = function (icapReq, icapRes, req, res) {
+    var callback, data, options, request, xxx;
+    xxx = false;
+    options = {
+        host: 'dev.metacert.com',
+        path: '/v4/check/',
+        method: 'POST',
+        headers: {
+            apikey: METACERT_KEY,
+            'Content-Type': 'application/json'
+        }
+    };
+    callback = function (response) {
+        var str;
+        console.log("THIS", this);
+        str = '';
+        response.on('data', function (chunk) {
+            return str += chunk;
+        });
+        return response.on('end', function () {
+            str = JSON.parse(str);
+            str.data.Domains.forEach(function (domain) {
+                if (domain.type === 'xxx') {
+                    return xxx = true;
+                }
+            });
+            if (xxx) {
+                return rejectRequest(icapReq, icapRes, req, res);
+            } else {
+                return acceptRequest(icapReq, icapRes, req, res);
+            }
+        });
+    };
+    data = {
+        url: req.uri
+    };
+    request = https.request(options, callback);
+    request.write(JSON.stringify(data));
+    return request.end();
+};
 
-server.response('*', rejectRequest);
+server.request('*', handleRequest);
+
+server.response('*', handleRequest);
 
 server.error(function (err, icapReq, icapRes, next) {
     console.error(err);

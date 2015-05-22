@@ -1,16 +1,13 @@
 ICAPServer = require('nodecap').ICAPServer
-DomainList = require('nodecap').DomainList
-
-whitelist = new DomainList()
-whitelist.addMany [
-  'google.com'
-]
+https = require 'https'
+METACERT_KEY = process.env.METACERT_KEY
 
 server = new ICAPServer
   debug: false
 
 console.log 'Starting ICAP Server'
 server.listen (port) ->
+  console.log "META", METACERT_KEY
   console.log 'ICAP server listening on port ' + port
 
 #  configure options
@@ -18,7 +15,6 @@ server.listen (port) ->
 #    configure squid to send these to different ICAP resource paths
 #  REQMOD
 server.options '/request', (icapReq, icapRes, next) ->
-  console.log 'request'
   icapRes.setIcapStatusCode 200
   icapRes.setIcapHeaders
     'Methods': 'REQMOD'
@@ -29,7 +25,6 @@ server.options '/request', (icapReq, icapRes, next) ->
 
 #  RESPMOD
 server.options '/response', (icapReq, icapRes, next) ->
-  console.log 'response'
   icapRes.setIcapStatusCode 200
   icapRes.setIcapHeaders
     'Methods': 'RESPMOD'
@@ -88,14 +83,43 @@ rejectRequest = (icapReq, icapRes, req, res) ->
     icapRes.writeHeaders false
   return
 
-#  handlers
-#  accept request/response if domain on whitelist
-# server.request whitelist, acceptRequest
-# server.response whitelist, acceptRequest
+handleRequest = (icapReq, icapRes, req, res) ->
 
-#  reject otherwise
-server.request '*', rejectRequest
-server.response '*', rejectRequest
+  xxx = false
+
+  options =
+    host: 'dev.metacert.com'
+    path: '/v4/check/'
+    method: 'POST'
+    headers:
+      apikey: METACERT_KEY
+      'Content-Type': 'application/json'
+
+  callback = (response) ->
+    console.log "THIS", @
+    str = ''
+    response.on 'data', (chunk) ->
+      str += chunk
+    response.on 'end', ->
+      str = JSON.parse str
+      str.data.Domains.forEach (domain) ->
+        xxx = true if domain.type is 'xxx'
+
+      if xxx
+        rejectRequest icapReq, icapRes, req, res
+      else
+        acceptRequest icapReq, icapRes, req, res
+
+  data =
+    url: req.uri
+
+  request = https.request options, callback
+  request.write JSON.stringify(data)
+  request.end()
+
+
+server.request '*', handleRequest
+server.response '*', handleRequest
 
 #  errors
 #  icap error
