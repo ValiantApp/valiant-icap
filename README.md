@@ -12,3 +12,10 @@ docker pull sameersbn/squid:latest
 docker run --name='squid' -it --rm -p 3128:3128 -v $(pwd)/squid.conf:/etc/squid3/squid.user.conf sameersbn/squid:latest
 node index.js
 ```
+
+## Building
+
+```
+npm install -g normajs
+norma build
+```
