@@ -13,7 +13,6 @@ server = new ICAPServer({
 console.log('Starting ICAP Server');
 
 server.listen(function (port) {
-    console.log("META", METACERT_KEY);
     return console.log('ICAP server listening on port ' + port);
 });
 

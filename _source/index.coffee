@@ -7,7 +7,6 @@ server = new ICAPServer
 
 console.log 'Starting ICAP Server'
 server.listen (port) ->
-  console.log "META", METACERT_KEY
   console.log 'ICAP server listening on port ' + port
 
 #  configure options
