@@ -1,0 +1,9 @@
+{
+  "name": "icap",
+  "tasks": {
+    "javascript": {
+      "src": "_source/**/*",
+      "dest": "."
+    }
+  }
+}

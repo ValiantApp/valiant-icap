@@ -1,0 +1,15 @@
+{
+  "name": "icap",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "nodecap": "^0.1.3",
+    "norma-javascript": "^0.4.2"
+  }
+}
