@@ -6,7 +6,7 @@ An ICAP server that can communicate with a squid proxy to filter requests based 
 
 ```
 git clone
-cd valiant-icap-server
+cd valiant-icap
 export METACERT_KEY=key
 docker pull sameersbn/squid:latest
 docker run --name='squid' -it --rm -p 3128:3128 -v $(pwd)/squid.conf:/etc/squid3/squid.user.conf sameersbn/squid:latest
