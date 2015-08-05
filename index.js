@@ -69,7 +69,8 @@ acceptRequest = function (icapReq, icapRes, req, res) {
 };
 
 rejectRequest = function (icapReq, icapRes, req, res) {
-    var hasBody, headers;
+    var errorPage, hasBody, headers;
+    errorPage = '<html> <head><title>Valiant Error</title></head> <body> <h1>Blocked</h1> </body> </html>';
     hasBody = false;
     headers = {};
     if (req.headers && 'Accept' in req.headers && req.headers['Accept'].indexOf('text') >= 0) {

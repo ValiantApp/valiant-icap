@@ -65,6 +65,14 @@ acceptRequest = (icapReq, icapRes, req, res) ->
 
 #  helper to reject a request/response
 rejectRequest = (icapReq, icapRes, req, res) ->
+  errorPage = '
+    <html>
+      <head><title>Valiant Error</title></head>
+      <body>
+        <h1>Blocked</h1>
+      </body>
+    </html>
+    '
   hasBody = false
   headers = {}
   # do *not* set Content-Length: causes an issue with Squid
