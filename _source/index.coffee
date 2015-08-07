@@ -1,6 +1,12 @@
 ICAPServer = require('nodecap').ICAPServer
-https = require 'https'
+http = require 'sync-request'
+fs = require 'fs'
 METACERT_KEY = process.env.METACERT_KEY
+
+errorPage = null
+fs.readFile 'error-page.html', 'utf8', (err, data) ->
+  throw err if err
+  errorPage = data
 
 server = new ICAPServer
   debug: false
@@ -9,9 +15,6 @@ console.log 'Starting ICAP Server'
 server.listen (port) ->
   console.log 'ICAP server listening on port ' + port
 
-#  configure options
-#    to have different options for requests and responses,
-#    configure squid to send these to different ICAP resource paths
 #  REQMOD
 server.options '/request', (icapReq, icapRes, next) ->
   icapRes.setIcapStatusCode 200
@@ -65,14 +68,6 @@ acceptRequest = (icapReq, icapRes, req, res) ->
 
 #  helper to reject a request/response
 rejectRequest = (icapReq, icapRes, req, res) ->
-  errorPage = '
-    <html>
-      <head><title>Valiant Error</title></head>
-      <body>
-        <h1>Blocked</h1>
-      </body>
-    </html>
-    '
   hasBody = false
   headers = {}
   # do *not* set Content-Length: causes an issue with Squid
@@ -92,36 +87,26 @@ rejectRequest = (icapReq, icapRes, req, res) ->
 
 handleRequest = (icapReq, icapRes, req, res) ->
 
+  url = 'https://dev.metacert.com/v4/check'
   xxx = false
 
   options =
-    host: 'dev.metacert.com'
-    path: '/v4/check/'
-    method: 'POST'
     headers:
       apikey: METACERT_KEY
-      'Content-Type': 'application/json'
+    json:
+      url: req.uri
 
-  callback = (response) ->
-    str = ''
-    response.on 'data', (chunk) ->
-      str += chunk
-    response.on 'end', ->
-      str = JSON.parse str
-      str.data.Domains.forEach (domain) ->
-        xxx = true if domain.type is 'xxx'
+  response = http('POST', url, options)
+  body = JSON.parse(response.getBody('utf8'))
+  body.data.Domains.forEach (domain) ->
+    if domain.type is 'xxx'
+      xxx = true
+      return
 
-      if xxx
-        rejectRequest icapReq, icapRes, req, res
-      else
-        acceptRequest icapReq, icapRes, req, res
-
-  data =
-    url: req.uri
-
-  request = https.request options, callback
-  request.write JSON.stringify(data)
-  request.end()
+  if xxx
+    rejectRequest(icapReq, icapRes, req, res)
+  else
+    acceptRequest(icapReq, icapRes, req, res)
 
 
 server.request '*', handleRequest

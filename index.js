@@ -1,10 +1,21 @@
-var ICAPServer, METACERT_KEY, acceptRequest, handleRequest, https, rejectRequest, server;
+var ICAPServer, METACERT_KEY, acceptRequest, errorPage, fs, handleRequest, http, rejectRequest, server;
 
 ICAPServer = require('nodecap').ICAPServer;
 
-https = require('https');
+http = require('sync-request');
+
+fs = require('fs');
 
 METACERT_KEY = process.env.METACERT_KEY;
+
+errorPage = null;
+
+fs.readFile('error-page.html', 'utf8', function (err, data) {
+    if (err) {
+        throw err;
+    }
+    return errorPage = data;
+});
 
 server = new ICAPServer({
     debug: false
@@ -69,8 +80,7 @@ acceptRequest = function (icapReq, icapRes, req, res) {
 };
 
 rejectRequest = function (icapReq, icapRes, req, res) {
-    var errorPage, hasBody, headers;
-    errorPage = '<html> <head><title>Valiant Error</title></head> <body> <h1>Blocked</h1> </body> </html>';
+    var hasBody, headers;
     hasBody = false;
     headers = {};
     if (req.headers && 'Accept' in req.headers && req.headers['Accept'].indexOf('text') >= 0) {
@@ -90,43 +100,29 @@ rejectRequest = function (icapReq, icapRes, req, res) {
 };
 
 handleRequest = function (icapReq, icapRes, req, res) {
-    var callback, data, options, request, xxx;
+    var body, options, response, url, xxx;
+    url = 'https://dev.metacert.com/v4/check';
     xxx = false;
     options = {
-        host: 'dev.metacert.com',
-        path: '/v4/check/',
-        method: 'POST',
         headers: {
-            apikey: METACERT_KEY,
-            'Content-Type': 'application/json'
+            apikey: METACERT_KEY
+        },
+        json: {
+            url: req.uri
         }
     };
-    callback = function (response) {
-        var str;
-        str = '';
-        response.on('data', function (chunk) {
-            return str += chunk;
-        });
-        return response.on('end', function () {
-            str = JSON.parse(str);
-            str.data.Domains.forEach(function (domain) {
-                if (domain.type === 'xxx') {
-                    return xxx = true;
-                }
-            });
-            if (xxx) {
-                return rejectRequest(icapReq, icapRes, req, res);
-            } else {
-                return acceptRequest(icapReq, icapRes, req, res);
-            }
-        });
-    };
-    data = {
-        url: req.uri
-    };
-    request = https.request(options, callback);
-    request.write(JSON.stringify(data));
-    return request.end();
+    response = http('POST', url, options);
+    body = JSON.parse(response.getBody('utf8'));
+    body.data.Domains.forEach(function (domain) {
+        if (domain.type === 'xxx') {
+            xxx = true;
+        }
+    });
+    if (xxx) {
+        return rejectRequest(icapReq, icapRes, req, res);
+    } else {
+        return acceptRequest(icapReq, icapRes, req, res);
+    }
 };
 
 server.request('*', handleRequest);
